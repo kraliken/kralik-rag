@@ -20,11 +20,12 @@ jobs:
             - name: Set up Node.js version
               uses: actions/setup-node@v4
               with:
-                  node-version: "20.x"
+                  node-version: "22.x"
                   cache: "npm"
 
             - name: Install and build
               env:
+                  # A build időben szükséges környezeti változók
                   AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
                   BCRYPT_SALT_ROUNDS: ${{ secrets.BCRYPT_SALT_ROUNDS }}
                   AUTH_MICROSOFT_ENTRA_ID_ID: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ID }}
@@ -36,24 +37,29 @@ jobs:
                   npm ci
                   npm run build
 
-                  # distDir = "build", output = "standalone"
-                  # A standalone szerver a static-ot a .next/static alatt várja:
-                  mkdir -p ./build/standalone/.next
+                  # Mivel a next.config.mjs-ben distDir: 'build' van megadva:
+                  # A Next.js a standalone fájlokat a build/standalone mappába generálja.
 
-                  # statikus assetek bemásolása a helyes helyre
-                  cp -r ./build/static ./build/standalone/.next/static
+                  # 1. Létrehozzuk a statikus fájlok helyét a standalone mappán belül.
+                  # A standalone szerver a distDir/static útvonalon keresi a fájlokat.
+                  mkdir -p ./build/standalone/build/static
 
-                  # public bemásolása
-                  cp -r ./public ./build/standalone/public
+                  # 2. Átmásoljuk a generált statikus asseteket (CSS, JS darabok)
+                  if [ -d "./build/static" ]; then
+                    cp -r ./build/static/. ./build/standalone/build/static/
+                  fi
+
+                  # 3. Átmásoljuk a public mappát (képek, robot.txt, stb.)
+                  if [ -d "./public" ]; then
+                    cp -r ./public ./build/standalone/public
+                  fi
 
             - name: Inspect standalone output (debug)
               run: |
-                  echo "=== build/standalone ==="
+                  echo "=== Tartalom ellenőrzése a deploy előtt ==="
                   ls -la ./build/standalone
-                  echo "=== build/standalone/.next ==="
-                  ls -la ./build/standalone/.next || true
-                  echo "=== build/standalone/.next/static ==="
-                  ls -la ./build/standalone/.next/static | head -n 50 || true
+                  echo "=== Build static mappa ellenőrzése ==="
+                  ls -la ./build/standalone/build/static || echo "Hiba: nincs static mappa!"
 
             - name: Deploy to Azure Web App
               id: deploy-to-webapp
@@ -62,4 +68,5 @@ jobs:
                   app-name: ${{ env.WEBAPP_NAME }}
                   slot-name: "Production"
                   publish-profile: ${{ env.APPLICATION_PUBLISH_PROFILE }}
+                  # Csak a standalone mappa tartalmát töltjük fel, ez lesz a szerver gyökere
                   package: ./build/standalone
