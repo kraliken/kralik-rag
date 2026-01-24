@@ -21,8 +21,9 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: "20.x"
+                  cache: "npm"
 
-            - name: npm install, build, and test
+            - name: Install and build
               env:
                   AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
                   BCRYPT_SALT_ROUNDS: ${{ secrets.BCRYPT_SALT_ROUNDS }}
@@ -31,14 +32,30 @@ jobs:
                   AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ISSUER }}
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                   MONGODB_URI: ${{ secrets.MONGODB_URI }}
-
               run: |
-                  npm install
+                  npm ci
                   npm run build
-                  mv ./build/static ./build/standalone/build
-                  mv ./public ./build/standalone
 
-            - name: "Deploy to Azure Web App"
+                  # distDir = "build", output = "standalone"
+                  # A standalone szerver a static-ot a .next/static alatt várja:
+                  mkdir -p ./build/standalone/.next
+
+                  # statikus assetek bemásolása a helyes helyre
+                  cp -r ./build/static ./build/standalone/.next/static
+
+                  # public bemásolása
+                  cp -r ./public ./build/standalone/public
+
+            - name: Inspect standalone output (debug)
+              run: |
+                  echo "=== build/standalone ==="
+                  ls -la ./build/standalone
+                  echo "=== build/standalone/.next ==="
+                  ls -la ./build/standalone/.next || true
+                  echo "=== build/standalone/.next/static ==="
+                  ls -la ./build/standalone/.next/static | head -n 50 || true
+
+            - name: Deploy to Azure Web App
               id: deploy-to-webapp
               uses: azure/webapps-deploy@v3
               with:
