@@ -56,27 +56,6 @@ const AppSidebar = ({ session }) => {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                <SidebarGroup>
-                    <SidebarGroupLabel>
-                        Document Intelligence
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {docIntLinks.map(task => (
-                                <SidebarMenuItem key={task.label}>
-                                    <SidebarMenuButton asChild>
-                                        <Link href={task.href}>
-                                            {task.icon}
-                                            {task.label}
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
                 {role === 'admin' && <SidebarGroup>
                     <SidebarGroupLabel>
                         Admin
