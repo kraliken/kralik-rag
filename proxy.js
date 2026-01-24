@@ -1,11 +1,10 @@
-import { NextResponse } from 'next/server'
-import { auth } from './auth'
+import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-const protectedRoutes = ["/dashboard"]
-const publicRoutesRedirectIfAuthed = ["/"]
+const protectedRoutes = ["/dashboard"];
+const publicRoutesRedirectIfAuthed = ["/"]; // ha akarod később használni
 
 export async function proxy(request) {
-
     const url = request.nextUrl;
     const originalPathname = url.pathname;
 
@@ -24,21 +23,23 @@ export async function proxy(request) {
         return NextResponse.next();
     }
 
-    const session = await auth();
+    // ✅ EDGE-SAFE session helyett JWT token olvasás
+    // Fontos: legyen beállítva az AUTH_SECRET Azure env-ben is!
+    const token = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET,
+    });
 
-    const isProtected = protectedRoutes.some((route) =>
-        pathname.startsWith(route)
-    );
+    const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
 
     const isHome = pathname === "/";
     const isLogin = pathname === "/login";
-    const isDashboardRoot = pathname === "/dashboard";
     const isChangePassword = pathname === "/change-password";
 
-    // ================
-    // 1) NINCS SESSION
-    // ================
-    if (!session) {
+    // =================
+    // 1) NINCS TOKEN
+    // =================
+    if (!token) {
         // Védett route → vissza főoldalra
         if (isProtected) {
             return NextResponse.redirect(new URL("/", request.url));
@@ -54,30 +55,23 @@ export async function proxy(request) {
     }
 
     // ==========================
-    // 2) VAN SESSION - extra infók
+    // 2) VAN TOKEN - extra infók
     // ==========================
+    const status = token?.status;
 
-    // INACTIVE BLOKKOLÁS (ide tedd!)
-    const status = session?.user?.status ?? session?.status;
-
+    // INACTIVE BLOKKOLÁS
     if (status === "inactive") {
-        // tipp: akár ide tehetsz egy logout route-ot is később
         return NextResponse.redirect(new URL("/?reason=inactive", request.url));
     }
-    const mustChangePassword =
-        session?.user?.mustChangePassword ??
-        session?.mustChangePassword ??
-        false;
+
+    const mustChangePassword = token?.mustChangePassword ?? false;
 
     // ==========================
     // 3) KÖTELEZŐ JELSZÓCSERE
     // ==========================
-    // console.log("mustChangePassword: ", mustChangePassword);
     if (mustChangePassword) {
         if (!isChangePassword) {
-            return NextResponse.redirect(
-                new URL("/change-password", request.url)
-            );
+            return NextResponse.redirect(new URL("/change-password", request.url));
         }
 
         // Ha már /change-password-on vagyunk → mehet tovább
@@ -87,20 +81,16 @@ export async function proxy(request) {
     // ==========================
     // 4) NEM KELL MÁR JELSZÓCSERE
     // ==========================
-
     // Ha már nem kell jelszót cserélni, ne lehessen visszamenni
     if (isChangePassword) {
         return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    const isHomeOrLogin = isHome || isLogin;
-
     // Bejelentkezve, és / vagy /login → dashboard
-    if (isHomeOrLogin) {
+    if (isHome || isLogin) {
         return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    // Védett route + van session → oké
+    // Védett route + van token → oké
     return NextResponse.next();
-
 }
