@@ -24,6 +24,12 @@ jobs:
 
             - name: npm install, build, and test
               env:
+                  AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+                  BCRYPT_SALT_ROUNDS: ${{ secrets.BCRYPT_SALT_ROUNDS }}
+                  AUTH_MICROSOFT_ENTRA_ID_ID: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ID }}
+                  AUTH_MICROSOFT_ENTRA_ID_SECRET: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_SECRET }}
+                  AUTH_MICROSOFT_ENTRA_ID_ISSUER: ${{ secrets.AUTH_MICROSOFT_ENTRA_ID_ISSUER }}
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                   MONGODB_URI: ${{ secrets.MONGODB_URI }}
 
               run: |
