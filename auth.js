@@ -28,6 +28,9 @@ function generatePasswordFromFullname(fullName) {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    trustHost:
+        process.env.AUTH_TRUST_HOST === "true" ||
+        Boolean(process.env.WEBSITE_HOSTNAME),
     adapter: MongoDBAdapter(client),
     session: {
         strategy: "jwt",
